@@ -1,0 +1,122 @@
+Proposta de Projeto
+Título:
+Simulação Cooperativa de Gestão Semafórica com Priorização de Veículos de Emergência em
+Cenário Urbano C-ITS
+Elementos do grupo:
+Ricardo Machado (NMEC 102737)
+Bernardo Marçal (NMEC 103236)
+
+
+Descrição:
+Este projeto consiste numa simulação baseada em comunicação C-ITS (Cooperative Intelligent
+Transport Systems), onde veículos, semáforos e veículos de emergência cooperam para otimizar a
+gestão de tráfego numa interseção urbana.
+
+A simulação envolve:
+- Eliminação de tempos de espera desnecessários dos semaforos para veículos normais através de mensagens
+- Adaptação dinâmica dos semáforos com base nas mensagens CAM dos veículos, reduzindo
+tempos de paragem desnecessários.
+- Priorização automática de veículos de emergência através de mensagens DENM.
+- Publicação da topologia da interseção via MAPEM e estado semafórico via SPATEM.
+- Comunicação via MQTT entre containers Docker com o uso do sistema Vanetza (NAP).
+Simulação/Emulação vs Real:
+A demonstração será feita através de simulação completa em ambiente virtual com containers
+Docker. Cada entidade (veículo, ambulância, RSU) será representada por um container
+independente, com troca de mensagens via MQTT.
+Não é necessário qualquer hardware físico.
+Nota
+
+
+A simulação envolve 15 obus, 1 ambulancia e 1 RSU(que controla os 4 semaforos, das 4 entradas da interseção).
+
+Os carros e a ambulancia podem seguir em frente, virar à esquerda ou virar à direita em cada interseção pelo que existe um total
+de 12 combinações possíveis de movimentos para cada veículo, que serão previamente definidos como argumento de entrada.
+
+Dinâmica de mensagens:
+
+- Os veículos enviam mensagens CAM periodicamente, informando sua posição.
+A RSU envia periodicamente mensagens MAPEM com a topologia da interseção e as OBUs têm responsabilidade de se enquadrar
+na topologia (autodefinir em que lane estão para posteriormente poderem receber as mensagens SPATEM dedicadas a cada lane/signalgroup).
+
+A RSU recebe as CAM dos veiculos e envia periodicamente mensagens SPATEM com o estado semafórico de cada lane/signalgroup. apenas um 
+semaforo pode estar verde de cada vez, os outros 3 devem estar vermelhos. A decisão de qual semáforo fica verde é feita com base nos seguintes critérios:
+- Se existir uma ambulância a aproximar-se, o semáforo correspondente à lane da ambulância fica verde.
+- Se não existir ambulância, o semáforo correspondente à lane com mais veículos à espera fica verde.
+- Em ultimo caso, o semaforo com o veiculo mais próximo à interseção fica verde.
+
+estes são os 12 paths possiveis para cada veículo:
+north_to_south = [
+    (38.726774, -9.134941),
+    (38.726304959120014, -9.134825),
+    (38.725943999943446, -9.134802004046243)
+]
+
+north_to_west = [
+    (38.726774, -9.134941),
+    (38.72631815128129, -9.134865657421392),
+    (38.72638099994345, -9.13568699665422)
+]
+
+north_to_east = [
+    (38.726774, -9.134941),
+    (38.72631815128129, -9.134784342578607),
+    (38.72629999994344, -9.134190996524385)
+]
+
+south_to_north = [
+    (38.725944, -9.134917),
+    (38.72639504087963, -9.134825),
+    (38.72677399994345, -9.13482600271583)
+]
+
+south_to_west = [
+    (38.725944, -9.134917),
+    (38.72638184870438, -9.134865657457487),
+    (38.72638099994345, -9.13568699665422)
+]
+
+south_to_east = [
+    (38.725944, -9.134917),
+    (38.72638184870438, -9.134784342542511),
+    (38.72629999994344, -9.134190996524385)
+]
+
+west_to_north = [
+    (38.726381, -9.135572),
+    (38.72638184870438, -9.134784342542511),
+    (38.72677399994345, -9.13482600271583)
+]
+
+west_to_south = [
+    (38.726381, -9.135572),
+    (38.72631815128129, -9.134784342578607),
+    (38.725943999943446, -9.134802004046243)
+]
+
+west_to_east = [
+    (38.726381, -9.135572),
+    (38.72634999998586, -9.134767501697734),
+    (38.72629999994344, -9.134190996524385)
+]
+
+east_to_north = [
+    (38.7263, -9.134076),
+    (38.72638184870438, -9.134865657457487),
+    (38.72677399994345, -9.13482600271583)
+]
+
+east_to_south = [
+    (38.7263, -9.134076),
+    (38.72631815128129, -9.134865657421392),
+    (38.725943999943446, -9.134802004046243)
+]
+
+east_to_west = [
+    (38.7263, -9.134076),
+    (38.72634999998586, -9.134882498302265),
+    (38.72638099994345, -9.13568699665422)
+]
+
+a primeira coordenada de cada path é a coordenada da geração do veiculo (inicio), a segunda coordenada é a coordenada do ponto de viragem e a terceira coordenada é a coordenada da saída da interseção.
+atraves do geopy deve ser possivel calcular a rota interpolada entre a coordenada de geração e a coordenada de saída da interseção, passando pelo ponto de viragem para criar
+uma movimentação realista do veiculo.
