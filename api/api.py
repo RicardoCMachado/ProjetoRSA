@@ -61,7 +61,6 @@ def on_messageCAM(client, userdata, msg):
         station_type = basic_container.get("stationType", 5)
         is_ambulance = station_type == 10
         
-        # Guardar/atualizar veículo
         vehicles[station_id] = {
             "latitude": latitude,
             "longitude": longitude,
@@ -98,6 +97,44 @@ def on_messageRSU(client, userdata, msg):
         print(f"[ERRO] ao processar SPATEM: {e}")
         green = {"semáforo_verde": None}
 
+def on_messageDENM(client, userdata, msg):
+    global vehicles
+    try:
+        message = json.loads(msg.payload.decode())
+        station_id = message.get("stationID")
+        latitude = message.get("latitude", 0) / 10000000.0
+        longitude = message.get("longitude", 0) / 10000000.0
+        
+        if station_id not in vehicles:
+            vehicles[station_id] = {}
+            
+        vehicles[station_id].update({
+            "latitude": latitude,
+            "longitude": longitude,
+            "isAmbulance": True,
+            "stationType": 10,
+            "lastUpdate": time.time()
+        })
+        
+        print(f"🚨 DENM recebido: Ambulância {station_id} em emergência em ({latitude:.6f}, {longitude:.6f})")
+        
+    except Exception as e:
+        print(f"❌ Erro ao processar DENM: {e}")
+
+client = mqtt.Client()
+client.on_connect = on_connectCAM
+client.on_message = lambda client, userdata, msg: {
+    "vanetza/out/cam": on_messageCAM,
+    "vanetza/out/spatem": on_messageRSU,
+    "vanetza/out/denm": on_messageDENM
+}.get(msg.topic, lambda *args: None)(client, userdata, msg)
+
+client.connect("192.168.98.10", 1883, 60)  
+client.subscribe("vanetza/out/cam")
+client.subscribe("vanetza/out/spatem")
+client.subscribe("vanetza/out/denm")
+threading.Thread(target=client.loop_forever, daemon=True).start()
+
 def clean_old_vehicles():
     global vehicles
     current_time = time.time()
@@ -114,18 +151,6 @@ def start_cleanup_thread():
     
     cleanup_thread = threading.Thread(target=cleanup_loop, daemon=True)
     cleanup_thread.start()
-
-clientCAM = mqtt.Client()
-clientCAM.on_connect = on_connectCAM
-clientCAM.on_message = on_messageCAM
-clientCAM.connect("192.168.98.10", 1883, 60)  
-threading.Thread(target=clientCAM.loop_forever, daemon=True).start()
-
-clientRSU = mqtt.Client()
-clientRSU.on_connect = on_connectRSU
-clientRSU.on_message = on_messageRSU
-clientRSU.connect("192.168.98.10", 1883, 60)  
-threading.Thread(target=clientRSU.loop_forever, daemon=True).start()
 
 start_cleanup_thread()
 
